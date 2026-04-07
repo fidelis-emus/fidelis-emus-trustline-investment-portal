@@ -209,7 +209,23 @@ const InvestmentDetailsModal = ({
                   <DetailItem label="Account Number" field="account_number" value={investment.account_number} />
                   <DetailItem label="Account Name" field="account_name" value={investment.account_name} />
                   <DetailItem label="Payment Date" field="payment_date" value={investment.payment_date} />
-                  <DetailItem label="Status" field="status" value={investment.status.toUpperCase()} />
+                  <div>
+                    <p className="text-[10px] uppercase font-bold text-gray-400 mb-1">Investment Status</p>
+                    {isEditing ? (
+                      <select 
+                        className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 outline-none"
+                        value={editData.status ?? investment.status}
+                        onChange={(e) => setEditData({ ...editData, status: e.target.value })}
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="verified">Verified</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
+                      </select>
+                    ) : (
+                      <p className="text-sm font-medium text-gray-900 uppercase">{investment.status}</p>
+                    )}
+                  </div>
                 </div>
               </section>
 
@@ -237,6 +253,43 @@ const InvestmentDetailsModal = ({
 
             {/* Right Column: Documents & Actions */}
             <div className="space-y-8">
+              <section>
+                <h4 className="text-xs font-extrabold text-blue-600 uppercase tracking-widest mb-4 border-b border-blue-50 pb-2">Compliance & Validation</h4>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-[10px] uppercase font-bold text-gray-400 mb-1">KYC Status</p>
+                    {isEditing ? (
+                      <select 
+                        className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 outline-none"
+                        value={editData.kyc_status ?? investment.kyc_status ?? 'pending'}
+                        onChange={(e) => setEditData({ ...editData, kyc_status: e.target.value })}
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="under_review">Under Review</option>
+                        <option value="completed">Completed</option>
+                      </select>
+                    ) : (
+                      <p className="text-sm font-medium text-gray-900 uppercase">{investment.kyc_status || 'PENDING'}</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase font-bold text-gray-400 mb-1">Validation Status</p>
+                    {isEditing ? (
+                      <select 
+                        className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 outline-none"
+                        value={editData.validation_status ?? investment.validation_status ?? 'pending'}
+                        onChange={(e) => setEditData({ ...editData, validation_status: e.target.value })}
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="completed">Completed</option>
+                      </select>
+                    ) : (
+                      <p className="text-sm font-medium text-gray-900 uppercase">{investment.validation_status || 'PENDING'}</p>
+                    )}
+                  </div>
+                </div>
+              </section>
+
               <section>
                 <h4 className="text-xs font-extrabold text-blue-600 uppercase tracking-widest mb-4 border-b border-blue-50 pb-2">KYC Documents</h4>
                 <div className="space-y-3">
@@ -1189,12 +1242,16 @@ const AdminDashboard = () => {
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
+  const [realtors, setRealtors] = useState<any[]>([]);
   const [selectedInvestment, setSelectedInvestment] = useState<Investment | null>(null);
   const [selectedClient, setSelectedClient] = useState<any | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<any>({});
   const [newFiles, setNewFiles] = useState<{ [key: string]: File | null }>({});
   const [showStaffModal, setShowStaffModal] = useState(false);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [newProduct, setNewProduct] = useState({ name: '', roi: '', duration: '', description: '' });
   const [newStaff, setNewStaff] = useState({ name: '', email: '', password: '', role: 'crm' as 'admin' | 'crm', permissions: { can_view_clients: true, can_view_investments: true, can_update_status: true, can_edit_clients: false } });
 
   const canViewClients = user?.role === 'admin' || user?.permissions?.can_view_clients === 1;
@@ -1231,16 +1288,21 @@ const AdminDashboard = () => {
     setStaff(await res.json());
   };
 
+  const fetchRealtors = async () => {
+    const res = await fetch('/api/admin/realtors', { headers: { Authorization: `Bearer ${token}` } });
+    setRealtors(await res.json());
+  };
+
   const fetchClientDetails = async (id: number) => {
     const res = await fetch(`/api/admin/clients/${id}`, { headers: { Authorization: `Bearer ${token}` } });
     setSelectedClient(await res.json());
   };
 
   useEffect(() => {
-    if (activeTab === 'clients') fetchClients();
-    if (activeTab === 'investments') fetchInvestments();
+    if (activeTab === 'investments' || activeTab === 'kyc' || activeTab === 'validation' || activeTab === 'receipt' || activeTab === 'rejections' || activeTab === 'tracker') fetchInvestments();
     if (activeTab === 'products') fetchProducts();
     if (activeTab === 'staff') fetchStaff();
+    if (activeTab === 'realtors') fetchRealtors();
   }, [activeTab]);
 
   const handleCreateStaff = async (e: React.FormEvent) => {
@@ -1333,6 +1395,45 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleCreateProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = await fetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(newProduct)
+    });
+    if (res.ok) {
+      setShowProductModal(false);
+      fetchProducts();
+      setNewProduct({ name: '', roi: '', duration: '', description: '' });
+    }
+  };
+
+  const handleUpdateProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct) return;
+    const res = await fetch(`/api/products/${editingProduct.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(newProduct)
+    });
+    if (res.ok) {
+      setShowProductModal(false);
+      setEditingProduct(null);
+      fetchProducts();
+      setNewProduct({ name: '', roi: '', duration: '', description: '' });
+    }
+  };
+
+  const deleteProduct = async (id: number) => {
+    if (!window.confirm('Are you sure you want to delete this product?')) return;
+    const res = await fetch(`/api/products/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.ok) fetchProducts();
+  };
+
   const DetailItem = ({ label, field, value }: { label: string, field: string, value?: string | number }) => (
     <div>
       <p className="text-[10px] uppercase font-bold text-gray-400 mb-1">{label}</p>
@@ -1388,7 +1489,7 @@ const AdminDashboard = () => {
         </div>
         <div className="space-y-1">
           <div onClick={() => setActiveTab('overview')}><SidebarItem icon={LayoutDashboard} label="Dashboard" to="#" active={activeTab === 'overview'} /></div>
-          <div onClick={() => setActiveTab('products')}><SidebarItem icon={FileText} label="Forms" to="#" active={activeTab === 'products'} /></div>
+          <div onClick={() => setActiveTab('products')}><SidebarItem icon={FileText} label="Products" to="#" active={activeTab === 'products'} /></div>
           {canViewInvestments && <div onClick={() => setActiveTab('investments')}><SidebarItem icon={Send} label="Submissions" to="#" active={activeTab === 'investments'} /></div>}
           <div onClick={() => setActiveTab('realtors')}><SidebarItem icon={UserCheck} label="Realtors" to="#" active={activeTab === 'realtors'} /></div>
           
@@ -1554,7 +1655,7 @@ const AdminDashboard = () => {
 
         {activeTab === 'investments' && (
           <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-gray-900">Investment Management</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Submissions (Investment Applications)</h1>
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <table className="w-full text-left">
                 <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
@@ -1576,19 +1677,230 @@ const AdminDashboard = () => {
                         <span className={cn(
                           "px-2 py-1 rounded-full text-[10px] font-bold uppercase",
                           inv.status === 'approved' ? "bg-green-100 text-green-700" :
-                          inv.status === 'rejected' ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"
+                          inv.status === 'rejected' ? "bg-red-100 text-red-700" : 
+                          inv.status === 'verified' ? "bg-blue-100 text-blue-700" : "bg-yellow-100 text-yellow-700"
                         )}>
                           {inv.status}
                         </span>
                       </td>
                       <td className="px-6 py-4 flex gap-2">
-                        <button onClick={() => { setSelectedInvestment(inv); setIsEditing(false); setEditData({}); }} className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-xs font-bold">
-                          <Eye size={18} /> VIEW DETAILS
+                        <button 
+                          onClick={() => { setSelectedInvestment(inv); setIsEditing(true); setEditData(inv); }} 
+                          className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                          title="Modify"
+                        >
+                          <FileText size={18} />
                         </button>
-                        {user?.role === 'admin' && (
-                          <button onClick={() => deleteInvestment(inv.id)} className="text-red-600 hover:text-red-800"><Trash2 size={18} /></button>
+                        {inv.status === 'pending' && (
+                          <button 
+                            onClick={() => updateInvestmentStatus(inv.id, 'verified')}
+                            className="p-1 text-indigo-600 hover:bg-indigo-50 rounded"
+                            title="Verify"
+                          >
+                            <CheckSquare size={18} />
+                          </button>
                         )}
+                        {(inv.status === 'pending' || inv.status === 'verified') && (
+                          <button 
+                            onClick={() => updateInvestmentStatus(inv.id, 'approved')}
+                            className="p-1 text-green-600 hover:bg-green-50 rounded"
+                            title="Approve"
+                          >
+                            <CheckCircle size={18} />
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => { setSelectedInvestment(inv); setIsEditing(false); setEditData({}); }} 
+                          className="p-1 text-gray-600 hover:bg-gray-50 rounded"
+                          title="View Details"
+                        >
+                          <Eye size={18} />
+                        </button>
                       </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'realtors' && (
+          <div className="space-y-6">
+            <h1 className="text-2xl font-bold text-gray-900">Realtors Management</h1>
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
+                  <tr>
+                    <th className="px-6 py-3">Name</th>
+                    <th className="px-6 py-3">Email</th>
+                    <th className="px-6 py-3">CID</th>
+                    <th className="px-6 py-3">Status</th>
+                    <th className="px-6 py-3">Joined</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {realtors.map(r => (
+                    <tr key={r.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 font-medium text-gray-900">{r.name}</td>
+                      <td className="px-6 py-4 text-gray-600">{r.email}</td>
+                      <td className="px-6 py-4 text-gray-600">{r.realtor_cid || 'N/A'}</td>
+                      <td className="px-6 py-4">
+                        <span className={cn(
+                          "px-2 py-1 rounded-full text-[10px] font-bold uppercase",
+                          r.status === 'active' ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                        )}>
+                          {r.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-gray-500">{new Date(r.created_at).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'kyc' && (
+          <div className="space-y-6">
+            <h1 className="text-2xl font-bold text-gray-900">KYC Compliance</h1>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                <p className="text-sm text-gray-500 mb-1">Pending KYC</p>
+                <h3 className="text-2xl font-bold text-yellow-600">{investments.filter(i => i.kyc_status === 'pending').length}</h3>
+              </div>
+              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                <p className="text-sm text-gray-500 mb-1">Under Review</p>
+                <h3 className="text-2xl font-bold text-blue-600">{investments.filter(i => i.kyc_status === 'under_review').length}</h3>
+              </div>
+              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                <p className="text-sm text-gray-500 mb-1">Completed KYC</p>
+                <h3 className="text-2xl font-bold text-green-600">{investments.filter(i => i.kyc_status === 'completed').length}</h3>
+              </div>
+            </div>
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
+                  <tr>
+                    <th className="px-6 py-3">Client</th>
+                    <th className="px-6 py-3">KYC Status</th>
+                    <th className="px-6 py-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {investments.map(inv => (
+                    <tr key={inv.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 font-medium text-gray-900">{inv.full_name}</td>
+                      <td className="px-6 py-4">
+                        <span className={cn(
+                          "px-2 py-1 rounded-full text-[10px] font-bold uppercase",
+                          inv.kyc_status === 'completed' ? "bg-green-100 text-green-700" :
+                          inv.kyc_status === 'under_review' ? "bg-blue-100 text-blue-700" : "bg-yellow-100 text-yellow-700"
+                        )}>
+                          {inv.kyc_status || 'pending'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <button onClick={() => { setSelectedInvestment(inv); setIsEditing(false); }} className="text-blue-600 hover:underline text-xs font-bold">VIEW DOCUMENTS</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'validation' && (
+          <div className="space-y-6">
+            <h1 className="text-2xl font-bold text-gray-900">Payment Validation</h1>
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
+                  <tr>
+                    <th className="px-6 py-3">Client</th>
+                    <th className="px-6 py-3">Amount</th>
+                    <th className="px-6 py-3">Validation Status</th>
+                    <th className="px-6 py-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {investments.map(inv => (
+                    <tr key={inv.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 font-medium text-gray-900">{inv.full_name}</td>
+                      <td className="px-6 py-4 text-gray-600">{inv.currency} {inv.amount.toLocaleString()}</td>
+                      <td className="px-6 py-4">
+                        <span className={cn(
+                          "px-2 py-1 rounded-full text-[10px] font-bold uppercase",
+                          inv.validation_status === 'completed' ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
+                        )}>
+                          {inv.validation_status || 'pending'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <button onClick={() => { setSelectedInvestment(inv); setIsEditing(false); }} className="text-blue-600 hover:underline text-xs font-bold">VIEW PROOF</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'receipt' && (
+          <div className="space-y-6">
+            <h1 className="text-2xl font-bold text-gray-900">Investment Receipts</h1>
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
+                  <tr>
+                    <th className="px-6 py-3">Client</th>
+                    <th className="px-6 py-3">Product</th>
+                    <th className="px-6 py-3">Amount</th>
+                    <th className="px-6 py-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {investments.filter(i => i.status === 'approved').map(inv => (
+                    <tr key={inv.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 font-medium text-gray-900">{inv.full_name}</td>
+                      <td className="px-6 py-4 text-gray-600">{inv.product_name}</td>
+                      <td className="px-6 py-4 text-gray-600">{inv.currency} {inv.amount.toLocaleString()}</td>
+                      <td className="px-6 py-4">
+                        <button onClick={() => { setSelectedInvestment(inv); setTimeout(() => window.print(), 500); }} className="flex items-center gap-1 text-blue-600 hover:underline text-xs font-bold">
+                          <Printer size={16} /> PRINT RECEIPT
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'rejections' && (
+          <div className="space-y-6">
+            <h1 className="text-2xl font-bold text-gray-900">Rejected Applications</h1>
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
+                  <tr>
+                    <th className="px-6 py-3">Client</th>
+                    <th className="px-6 py-3">Product</th>
+                    <th className="px-6 py-3">Amount</th>
+                    <th className="px-6 py-3">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {investments.filter(i => i.status === 'rejected').map(inv => (
+                    <tr key={inv.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 font-medium text-gray-900">{inv.full_name}</td>
+                      <td className="px-6 py-4 text-gray-600">{inv.product_name}</td>
+                      <td className="px-6 py-4 text-gray-600">{inv.currency} {inv.amount.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-gray-500">{new Date(inv.created_at).toLocaleDateString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1600,23 +1912,33 @@ const AdminDashboard = () => {
         {activeTab === 'tracker' && (
           <div className="space-y-6">
             <h1 className="text-2xl font-bold text-gray-900">Investment Tracker</h1>
-            <div className="bg-white p-8 rounded-2xl border border-gray-100 text-center">
-              <Activity size={48} className="mx-auto text-blue-600 mb-4" />
-              <h3 className="text-lg font-bold text-gray-900">Real-time Tracker</h3>
-              <p className="text-gray-500">Monitoring all active investment flows and maturity dates.</p>
-            </div>
-          </div>
-        )}
-
-        {['realtors', 'kyc', 'validation', 'receipt', 'rejections'].includes(activeTab) && (
-          <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-gray-900 uppercase">{activeTab} Management</h1>
-            <div className="bg-white p-12 rounded-2xl border border-gray-100 text-center">
-              <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Settings className="text-blue-600 animate-spin" />
-              </div>
-              <h3 className="text-lg font-bold text-gray-900">Module Under Configuration</h3>
-              <p className="text-gray-500">This section is currently being optimized for your workflow.</p>
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
+                  <tr>
+                    <th className="px-6 py-3">Client</th>
+                    <th className="px-6 py-3">Product</th>
+                    <th className="px-6 py-3">Amount</th>
+                    <th className="px-6 py-3">Maturity</th>
+                    <th className="px-6 py-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {investments.filter(i => i.status === 'approved').map(inv => (
+                    <tr key={inv.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 font-medium text-gray-900">{inv.full_name}</td>
+                      <td className="px-6 py-4 text-gray-600">{inv.product_name}</td>
+                      <td className="px-6 py-4 text-gray-600">{inv.currency} {inv.amount.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-gray-600">{inv.duration}</td>
+                      <td className="px-6 py-4">
+                        <button onClick={() => { setSelectedInvestment(inv); setIsEditing(false); }} className="flex items-center gap-1 text-blue-600 hover:underline text-xs font-bold">
+                          <Eye size={16} /> VIEW DETAILS
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
@@ -1626,7 +1948,10 @@ const AdminDashboard = () => {
             <div className="flex justify-between items-center">
               <h1 className="text-2xl font-bold text-gray-900">Product Management</h1>
               {user?.role === 'admin' && (
-                <button className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700">
+                <button 
+                  onClick={() => { setEditingProduct(null); setNewProduct({ name: '', roi: '', duration: '', description: '' }); setShowProductModal(true); }}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700"
+                >
                   <Plus size={20} /> Add Product
                 </button>
               )}
@@ -1639,10 +1964,16 @@ const AdminDashboard = () => {
                     <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold">{p.roi} ROI</span>
                   </div>
                   <p className="text-sm text-gray-500 mb-4">{p.duration} Duration</p>
+                  <p className="text-xs text-gray-400 mb-4 line-clamp-2">{p.description}</p>
                   <div className="flex gap-2">
-                    <button className="text-sm font-medium text-blue-600 hover:underline">Edit</button>
+                    <button 
+                      onClick={() => { setEditingProduct(p); setNewProduct({ name: p.name, roi: p.roi, duration: p.duration, description: p.description || '' }); setShowProductModal(true); }}
+                      className="text-sm font-medium text-blue-600 hover:underline"
+                    >
+                      Edit
+                    </button>
                     {user?.role === 'admin' && (
-                      <button className="text-sm font-medium text-red-600 hover:underline">Delete</button>
+                      <button onClick={() => deleteProduct(p.id)} className="text-sm font-medium text-red-600 hover:underline">Delete</button>
                     )}
                   </div>
                 </div>
@@ -1703,6 +2034,44 @@ const AdminDashboard = () => {
           </div>
         )}
       </main>
+
+      {/* Product Modal */}
+      <AnimatePresence>
+        {showProductModal && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50" onClick={() => setShowProductModal(false)} />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+              <h3 className="text-xl font-bold text-gray-900 mb-6">{editingProduct ? 'Edit Product' : 'Add New Product'}</h3>
+              <form onSubmit={editingProduct ? handleUpdateProduct : handleCreateProduct} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Product Name</label>
+                  <input type="text" required className="w-full px-4 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" value={newProduct.name} onChange={e => setNewProduct({ ...newProduct, name: e.target.value })} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">ROI Rate (%)</label>
+                    <input type="text" required className="w-full px-4 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" value={newProduct.roi} onChange={e => setNewProduct({ ...newProduct, roi: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Duration</label>
+                    <input type="text" required className="w-full px-4 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" value={newProduct.duration} onChange={e => setNewProduct({ ...newProduct, duration: e.target.value })} />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Description</label>
+                  <textarea className="w-full px-4 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px]" value={newProduct.description} onChange={e => setNewProduct({ ...newProduct, description: e.target.value })} />
+                </div>
+                <div className="flex gap-4 pt-4">
+                  <button type="button" onClick={() => setShowProductModal(false)} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg font-bold text-gray-600">Cancel</button>
+                  <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700">
+                    {editingProduct ? 'Update Product' : 'Create Product'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Staff Modal */}
       <AnimatePresence>

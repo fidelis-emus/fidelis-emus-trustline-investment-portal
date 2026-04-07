@@ -40,6 +40,7 @@ db.exec(`
     password TEXT NOT NULL,
     role TEXT DEFAULT 'client', -- 'admin', 'crm', 'client'
     status TEXT DEFAULT 'active', -- 'active', 'suspended'
+    realtor_cid TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -103,7 +104,10 @@ db.exec(`
     payment_proof_url TEXT,
     payment_date TEXT,
     
-    status TEXT DEFAULT 'pending', -- 'pending', 'approved', 'rejected'
+    kyc_status TEXT DEFAULT 'pending', -- 'pending', 'under_review', 'completed'
+    validation_status TEXT DEFAULT 'pending', -- 'pending', 'completed'
+    
+    status TEXT DEFAULT 'pending', -- 'pending', 'verified', 'approved', 'rejected'
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (product_id) REFERENCES products(id)
@@ -254,6 +258,13 @@ app.post("/api/products", authenticate, (req: any, res) => {
   const { name, roi, duration, description } = req.body;
   const result = db.prepare("INSERT INTO products (name, roi, duration, description) VALUES (?, ?, ?, ?)").run(name, roi, duration, description);
   res.json({ id: result.lastInsertRowid });
+});
+
+app.patch("/api/products/:id", authenticate, (req: any, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+  const { name, roi, duration, description } = req.body;
+  db.prepare("UPDATE products SET name = ?, roi = ?, duration = ?, description = ? WHERE id = ?").run(name, roi, duration, description, req.params.id);
+  res.json({ success: true });
 });
 
 app.delete("/api/products/:id", authenticate, (req: any, res) => {
@@ -485,6 +496,12 @@ app.delete("/api/admin/clients/:id", authenticate, (req: any, res) => {
   res.json({ success: true });
 });
 
+app.get("/api/admin/realtors", authenticate, (req: any, res) => {
+  if (!['admin', 'crm'].includes(req.user.role)) return res.status(403).json({ error: "Forbidden" });
+  const realtors = db.prepare("SELECT id, name, email, realtor_cid, status, created_at FROM users WHERE role = 'realtor'").all();
+  res.json(realtors);
+});
+
 app.get("/api/admin/investments", authenticate, (req: any, res) => {
   if (!['admin', 'crm'].includes(req.user.role)) return res.status(403).json({ error: "Forbidden" });
   const investments = db.prepare(`
@@ -516,7 +533,7 @@ app.patch("/api/admin/investments/:id", authenticate, upload.fields([
 
   // Handle regular fields
   const allowedFields = [
-    'status', 'full_name', 'email', 'phone', 'dob', 'gender', 'is_pep', 'tax_id', 
+    'status', 'kyc_status', 'validation_status', 'full_name', 'email', 'phone', 'dob', 'gender', 'is_pep', 'tax_id', 
     'marital_status', 'country', 'state', 'nin', 'bvn', 'currency', 'amount', 
     'bank_name', 'account_number', 'account_name', 'duration', 'nok_name', 
     'nok_email', 'nok_address', 'nok_phone', 'realtor_cid', 'rep_group', 
