@@ -560,6 +560,12 @@ app.patch("/api/admin/investments/:id", authenticate, upload.fields([
   }
 });
 
+app.delete("/api/admin/investments/:id", authenticate, (req: any, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+  db.prepare("DELETE FROM investments WHERE id = ?").run(req.params.id);
+  res.json({ success: true });
+});
+
 // --- Vite Middleware ---
 
 async function startServer() {

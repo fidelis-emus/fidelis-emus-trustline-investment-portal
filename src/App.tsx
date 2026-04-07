@@ -1,13 +1,300 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext';
-import { Layout, LogIn, PieChart, Users, Briefcase, Settings, LogOut, Menu, X, Plus, CheckCircle, XCircle, Clock, Eye, Trash2, ShieldAlert } from 'lucide-react';
+import { Layout, LogIn, PieChart, Users, Briefcase, Settings, LogOut, Menu, X, Plus, CheckCircle, XCircle, Clock, Eye, Trash2, ShieldAlert, Printer } from 'lucide-react';
 import { formatCurrency, cn } from './lib/utils';
 import { User, Product, Investment, AdminStats } from './types';
 import { motion, AnimatePresence } from 'motion/react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 // --- Components ---
+
+const PrintableInvestmentReport = ({ investment }: { investment: Investment }) => {
+  return (
+    <div className="hidden print:block p-10 bg-white text-black font-serif min-h-screen">
+      <div className="text-center mb-10 border-b-2 border-blue-600 pb-6">
+        <h1 className="text-4xl font-bold text-blue-800 uppercase tracking-widest">Trustline Capital</h1>
+        <p className="text-sm text-gray-600 mt-2">Professional Asset Management & Investment Solutions</p>
+      </div>
+      
+      <div className="flex justify-between items-start mb-8">
+        <div>
+          <h2 className="text-2xl font-bold mb-4 border-b border-gray-200 pb-2">Investment Certificate</h2>
+          <p className="text-sm"><span className="font-bold">Certificate No:</span> TC-{investment.id.toString().padStart(6, '0')}</p>
+          <p className="text-sm"><span className="font-bold">Date Issued:</span> {new Date().toLocaleDateString()}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-sm font-bold uppercase text-blue-600">{investment.status}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-10 mb-10">
+        <div className="space-y-4">
+          <h3 className="font-bold border-b border-gray-100 pb-1">Investor Details</h3>
+          <p className="text-sm"><span className="font-bold">Name:</span> {investment.full_name}</p>
+          <p className="text-sm"><span className="font-bold">Email:</span> {investment.email}</p>
+          <p className="text-sm"><span className="font-bold">Phone:</span> {investment.phone}</p>
+          <p className="text-sm"><span className="font-bold">Address:</span> {investment.state}, {investment.country}</p>
+        </div>
+        <div className="space-y-4">
+          <h3 className="font-bold border-b border-gray-100 pb-1">Investment Details</h3>
+          <p className="text-sm"><span className="font-bold">Product:</span> {investment.product_name}</p>
+          <p className="text-sm"><span className="font-bold">Principal Amount:</span> {investment.currency} {investment.amount.toLocaleString()}</p>
+          <p className="text-sm"><span className="font-bold">Duration:</span> {investment.duration}</p>
+          <p className="text-sm"><span className="font-bold">Payment Date:</span> {investment.payment_date}</p>
+        </div>
+      </div>
+
+      <div className="mt-20 flex justify-between items-end">
+        <div className="text-center">
+          <div className="w-40 border-b border-black mb-2"></div>
+          <p className="text-xs font-bold uppercase">Investor Signature</p>
+        </div>
+        <div className="text-center">
+          <div className="w-40 border-b border-black mb-2"></div>
+          <p className="text-xs font-bold uppercase">Authorized Signatory</p>
+          <p className="text-[10px] text-gray-500">Trustline Capital Management</p>
+        </div>
+      </div>
+
+      <div className="mt-20 text-[10px] text-gray-400 text-center border-t pt-4">
+        <p>This is a computer-generated document. No physical signature is required for validation.</p>
+        <p>Trustline Capital is a registered asset management firm. Terms and conditions apply.</p>
+      </div>
+    </div>
+  );
+};
+
+const InvestmentDetailsModal = ({ 
+  investment, 
+  onClose, 
+  onUpdateStatus, 
+  onSaveEdit, 
+  canEdit, 
+  canUpdateStatus,
+  isEditing,
+  setIsEditing,
+  editData,
+  setEditData,
+  newFiles,
+  setNewFiles
+}: any) => {
+  if (!investment) return null;
+
+  const DetailItem = ({ label, field, value }: { label: string, field: string, value?: string | number }) => (
+    <div>
+      <p className="text-[10px] uppercase font-bold text-gray-400 mb-1">{label}</p>
+      {isEditing ? (
+        <input
+          type="text"
+          className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 outline-none"
+          value={editData[field] ?? value ?? ''}
+          onChange={(e) => setEditData({ ...editData, [field]: e.target.value })}
+        />
+      ) : (
+        <p className="text-sm font-medium text-gray-900">{value || 'N/A'}</p>
+      )}
+    </div>
+  );
+
+  const DocLink = ({ label, field, url }: { label: string, field: string, url?: string }) => (
+    <div className="p-3 border border-gray-100 rounded-lg bg-gray-50 space-y-2">
+      <div className="flex justify-between items-center">
+        <span className="text-xs font-bold text-gray-600 uppercase">{label}</span>
+        <div className="flex gap-2">
+          {url && (
+            <a href={url} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-xs font-bold">
+              <Eye size={14} /> VIEW
+            </a>
+          )}
+          {isEditing && (
+            <button
+              onClick={() => setEditData({ ...editData, [`delete_${field}`]: 'true' })}
+              className="text-red-600 hover:text-red-800 text-xs font-bold"
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
+        </div>
+      </div>
+      {isEditing && (
+        <input
+          type="file"
+          className="text-[10px] w-full"
+          onChange={(e) => setNewFiles({ ...newFiles, [field]: e.target.files?.[0] || null })}
+        />
+      )}
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 overflow-y-auto print:hidden">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-5xl my-8 overflow-hidden"
+      >
+        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10">
+          <div>
+            <h3 className="text-xl font-bold text-gray-900">Investment Details & KYC</h3>
+            <p className="text-sm text-gray-500">Review client information</p>
+          </div>
+          <div className="flex items-center gap-4">
+            {investment.status === 'approved' && (
+              <button
+                onClick={() => window.print()}
+                className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-bold text-sm hover:bg-gray-200 transition-all flex items-center gap-2"
+              >
+                <Printer size={18} /> Print Report
+              </button>
+            )}
+            {canEdit && (
+              !isEditing ? (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg font-bold text-sm hover:bg-blue-100 transition-all"
+                >
+                  Edit Information
+                </button>
+              ) : (
+                <button
+                  onClick={onSaveEdit}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-blue-700 transition-all"
+                >
+                  Save Changes
+                </button>
+              )
+            )}
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+          </div>
+        </div>
+
+        <div className="p-6 overflow-y-auto max-h-[80vh]">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left Column: Personal & Financial */}
+            <div className="lg:col-span-2 space-y-8">
+              <section>
+                <h4 className="text-xs font-extrabold text-blue-600 uppercase tracking-widest mb-4 border-b border-blue-50 pb-2">Client Information</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
+                  <DetailItem label="Full Name" field="full_name" value={investment.full_name} />
+                  <DetailItem label="Email" field="email" value={investment.email} />
+                  <DetailItem label="Phone" field="phone" value={investment.phone} />
+                  <DetailItem label="Date of Birth" field="dob" value={investment.dob} />
+                  <DetailItem label="Gender" field="gender" value={investment.gender} />
+                  <DetailItem label="PEP Status" field="is_pep" value={investment.is_pep} />
+                  <DetailItem label="Tax ID" field="tax_id" value={investment.tax_id} />
+                  <DetailItem label="Marital Status" field="marital_status" value={investment.marital_status} />
+                  <DetailItem label="Country" field="country" value={investment.country} />
+                  <DetailItem label="State" field="state" value={investment.state} />
+                  <DetailItem label="NIN" field="nin" value={investment.nin} />
+                  <DetailItem label="BVN" field="bvn" value={investment.bvn} />
+                </div>
+              </section>
+
+              <section>
+                <h4 className="text-xs font-extrabold text-blue-600 uppercase tracking-widest mb-4 border-b border-blue-50 pb-2">Investment Details</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
+                  <DetailItem label="Product" field="product_name" value={investment.product_name} />
+                  <DetailItem label="Amount" field="amount" value={`${investment.currency} ${investment.amount.toLocaleString()}`} />
+                  <DetailItem label="Duration" field="duration" value={investment.duration} />
+                  <DetailItem label="Bank Name" field="bank_name" value={investment.bank_name} />
+                  <DetailItem label="Account Number" field="account_number" value={investment.account_number} />
+                  <DetailItem label="Account Name" field="account_name" value={investment.account_name} />
+                  <DetailItem label="Payment Date" field="payment_date" value={investment.payment_date} />
+                  <DetailItem label="Status" field="status" value={investment.status.toUpperCase()} />
+                </div>
+              </section>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <section>
+                  <h4 className="text-xs font-extrabold text-blue-600 uppercase tracking-widest mb-4 border-b border-blue-50 pb-2">Next of Kin</h4>
+                  <div className="space-y-4">
+                    <DetailItem label="Name" field="nok_name" value={investment.nok_name} />
+                    <DetailItem label="Email" field="nok_email" value={investment.nok_email} />
+                    <DetailItem label="Phone" field="nok_phone" value={investment.nok_phone} />
+                    <DetailItem label="Address" field="nok_address" value={investment.nok_address} />
+                  </div>
+                </section>
+                <section>
+                  <h4 className="text-xs font-extrabold text-blue-600 uppercase tracking-widest mb-4 border-b border-blue-50 pb-2">Realtor Info</h4>
+                  <div className="space-y-4">
+                    <DetailItem label="Realtor CID" field="realtor_cid" value={investment.realtor_cid} />
+                    <DetailItem label="REP Group" field="rep_group" value={investment.rep_group} />
+                    <DetailItem label="Group CID" field="rep_group_cid" value={investment.rep_group_cid} />
+                    <DetailItem label="REP Name" field="rep_name" value={investment.rep_name} />
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            {/* Right Column: Documents & Actions */}
+            <div className="space-y-8">
+              <section>
+                <h4 className="text-xs font-extrabold text-blue-600 uppercase tracking-widest mb-4 border-b border-blue-50 pb-2">KYC Documents</h4>
+                <div className="space-y-3">
+                  <DocLink label="Passport Photo" field="passport" url={investment.passport_url} />
+                  <DocLink label="Valid ID Card" field="id_card" url={investment.id_card_url} />
+                  <DocLink label="Utility Bill" field="utility_bill" url={investment.utility_bill_url} />
+                  <DocLink label="Client Signature" field="signature" url={investment.signature_url} />
+                  <DocLink label="Payment Proof" field="payment_proof" url={investment.payment_proof_url} />
+                </div>
+              </section>
+
+              <section className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
+                <h4 className="text-sm font-bold text-gray-900 mb-4">Status Actions</h4>
+                <div className="space-y-3">
+                  {canUpdateStatus && investment.status === 'pending' ? (
+                    <>
+                      <button
+                        onClick={() => onUpdateStatus(investment.id, 'approved')}
+                        className="w-full bg-green-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-all"
+                      >
+                        <CheckCircle size={20} /> Approve Investment
+                      </button>
+                      <button
+                        onClick={() => onUpdateStatus(investment.id, 'rejected')}
+                        className="w-full bg-red-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-red-700 transition-all"
+                      >
+                        <XCircle size={20} /> Reject Investment
+                      </button>
+                    </>
+                  ) : (
+                    <div className={cn(
+                      "p-4 rounded-xl text-center font-bold uppercase tracking-wider",
+                      investment.status === 'approved' ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                    )}>
+                      Status: {investment.status}
+                    </div>
+                  )}
+                  {!canUpdateStatus && investment.status === 'pending' && (
+                    <div className="p-4 bg-gray-100 text-gray-500 rounded-xl text-center font-bold">
+                      No Permission to Update Status
+                    </div>
+                  )}
+                  <button
+                    onClick={onClose}
+                    className="w-full bg-white border border-gray-200 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-50 transition-all"
+                  >
+                    Close View
+                  </button>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+        <PrintableInvestmentReport investment={investment} />
+      </motion.div>
+    </div>
+  );
+};
 
 const SidebarItem = ({ icon: Icon, label, to, active }: { icon: any, label: string, to: string, active?: boolean }) => (
   <Link
@@ -250,6 +537,7 @@ const ClientDashboard = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedInvestment, setSelectedInvestment] = useState<Investment | null>(null);
   const [activeTab, setActiveTab] = useState<'investments' | 'profile'>('investments');
   const [profileData, setProfileData] = useState({
     name: authUser?.name || '',
@@ -462,6 +750,7 @@ const ClientDashboard = () => {
                     <th className="px-6 py-3">Duration</th>
                     <th className="px-6 py-3">Status</th>
                     <th className="px-6 py-3">Date</th>
+                    <th className="px-6 py-3">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -480,6 +769,14 @@ const ClientDashboard = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-gray-500 text-sm">{new Date(inv.created_at).toLocaleDateString()}</td>
+                      <td className="px-6 py-4">
+                        <button 
+                          onClick={() => setSelectedInvestment(inv)}
+                          className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-xs font-bold"
+                        >
+                          <Eye size={16} /> VIEW
+                        </button>
+                      </td>
                     </tr>
                   ))}
                   {investments.length === 0 && (
@@ -535,6 +832,20 @@ const ClientDashboard = () => {
 
       {/* Modal */}
       <AnimatePresence>
+        {selectedInvestment && (
+          <InvestmentDetailsModal
+            investment={selectedInvestment}
+            onClose={() => setSelectedInvestment(null)}
+            canEdit={false}
+            canUpdateStatus={false}
+            isEditing={false}
+            setIsEditing={() => {}}
+            editData={{}}
+            setEditData={() => {}}
+            newFiles={{}}
+            setNewFiles={() => {}}
+          />
+        )}
         {isModalOpen && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 overflow-y-auto">
             <motion.div
@@ -843,6 +1154,7 @@ const AdminDashboard = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
   const [selectedInvestment, setSelectedInvestment] = useState<Investment | null>(null);
+  const [selectedClient, setSelectedClient] = useState<any | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<any>({});
   const [newFiles, setNewFiles] = useState<{ [key: string]: File | null }>({});
@@ -881,6 +1193,11 @@ const AdminDashboard = () => {
   const fetchStaff = async () => {
     const res = await fetch('/api/admin/staff', { headers: { Authorization: `Bearer ${token}` } });
     setStaff(await res.json());
+  };
+
+  const fetchClientDetails = async (id: number) => {
+    const res = await fetch(`/api/admin/clients/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+    setSelectedClient(await res.json());
   };
 
   useEffect(() => {
@@ -960,12 +1277,24 @@ const AdminDashboard = () => {
   };
 
   const deleteClient = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this client?')) return;
+    if (!window.confirm('Are you sure you want to delete this client? All their investments will also be deleted.')) return;
     const res = await fetch(`/api/admin/clients/${id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` }
     });
     if (res.ok) fetchClients();
+  };
+
+  const deleteInvestment = async (id: number) => {
+    if (!window.confirm('Are you sure you want to delete this investment?')) return;
+    const res = await fetch(`/api/admin/investments/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.ok) {
+      fetchInvestments();
+      setSelectedInvestment(null);
+    }
   };
 
   const DetailItem = ({ label, field, value }: { label: string, field: string, value?: string | number }) => (
@@ -1143,7 +1472,7 @@ const AdminDashboard = () => {
                       </td>
                       <td className="px-6 py-4 text-gray-500">{new Date(c.created_at).toLocaleDateString()}</td>
                       <td className="px-6 py-4 flex gap-2">
-                        <button className="text-blue-600 hover:text-blue-800"><Eye size={18} /></button>
+                        <button onClick={() => fetchClientDetails(c.id)} className="text-blue-600 hover:text-blue-800"><Eye size={18} /></button>
                         {user?.role === 'admin' && (
                           <button onClick={() => deleteClient(c.id)} className="text-red-600 hover:text-red-800"><Trash2 size={18} /></button>
                         )}
@@ -1189,6 +1518,9 @@ const AdminDashboard = () => {
                         <button onClick={() => { setSelectedInvestment(inv); setIsEditing(false); setEditData({}); }} className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-xs font-bold">
                           <Eye size={18} /> VIEW DETAILS
                         </button>
+                        {user?.role === 'admin' && (
+                          <button onClick={() => deleteInvestment(inv.id)} className="text-red-600 hover:text-red-800"><Trash2 size={18} /></button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -1331,163 +1663,98 @@ const AdminDashboard = () => {
 
       {/* Investment Detail Modal */}
       <AnimatePresence>
-        {selectedInvestment && (
+        {selectedClient && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 overflow-y-auto">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-              onClick={() => setSelectedInvestment(null)}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-white rounded-2xl shadow-2xl w-full max-w-5xl my-8 overflow-hidden"
-            >
-              <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">Investment Details & KYC</h3>
-                  <p className="text-sm text-gray-500">Review and modify client information</p>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSelectedClient(null)} />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl p-8">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold text-gray-900">Client Profile: {selectedClient.client.name}</h3>
+                <button onClick={() => setSelectedClient(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                <div className="space-y-4">
+                  <h4 className="font-bold text-gray-900 border-b pb-2">Account Info</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-[10px] uppercase font-bold text-gray-400">Email</p>
+                      <p className="font-medium">{selectedClient.client.email}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-bold text-gray-400">Status</p>
+                      <p className="font-medium uppercase">{selectedClient.client.status}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-bold text-gray-400">Joined</p>
+                      <p className="font-medium">{new Date(selectedClient.client.created_at).toLocaleDateString()}</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  {canEditClients && (
-                    !isEditing ? (
-                      <button
-                        onClick={() => setIsEditing(true)}
-                        className="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg font-bold text-sm hover:bg-blue-100 transition-all"
-                      >
-                        Edit Information
-                      </button>
-                    ) : (
-                      <button
-                        onClick={handleSaveEdit}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-blue-700 transition-all"
-                      >
-                        Save Changes
-                      </button>
-                    )
-                  )}
-                  <button onClick={() => setSelectedInvestment(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                <div className="space-y-4">
+                  <h4 className="font-bold text-gray-900 border-b pb-2">Investment Summary</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-[10px] uppercase font-bold text-gray-400">Total Investments</p>
+                      <p className="font-medium">{selectedClient.investments.length}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-bold text-gray-400">Total Approved Value</p>
+                      <p className="font-medium">
+                        {formatCurrency(selectedClient.investments.reduce((sum: number, i: any) => i.status === 'approved' ? sum + i.amount : sum, 0))}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="p-6 overflow-y-auto max-h-[80vh]">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  {/* Left Column: Personal & Financial */}
-                  <div className="lg:col-span-2 space-y-8">
-                    <section>
-                      <h4 className="text-xs font-extrabold text-blue-600 uppercase tracking-widest mb-4 border-b border-blue-50 pb-2">Client Information</h4>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
-                        <DetailItem label="Full Name" field="full_name" value={selectedInvestment.full_name} />
-                        <DetailItem label="Email" field="email" value={selectedInvestment.email} />
-                        <DetailItem label="Phone" field="phone" value={selectedInvestment.phone} />
-                        <DetailItem label="Date of Birth" field="dob" value={selectedInvestment.dob} />
-                        <DetailItem label="Gender" field="gender" value={selectedInvestment.gender} />
-                        <DetailItem label="PEP Status" field="is_pep" value={selectedInvestment.is_pep} />
-                        <DetailItem label="Tax ID" field="tax_id" value={selectedInvestment.tax_id} />
-                        <DetailItem label="Marital Status" field="marital_status" value={selectedInvestment.marital_status} />
-                        <DetailItem label="Country" field="country" value={selectedInvestment.country} />
-                        <DetailItem label="State" field="state" value={selectedInvestment.state} />
-                        <DetailItem label="NIN" field="nin" value={selectedInvestment.nin} />
-                        <DetailItem label="BVN" field="bvn" value={selectedInvestment.bvn} />
-                      </div>
-                    </section>
-
-                    <section>
-                      <h4 className="text-xs font-extrabold text-blue-600 uppercase tracking-widest mb-4 border-b border-blue-50 pb-2">Investment Details</h4>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
-                        <DetailItem label="Product" field="product_name" value={selectedInvestment.product_name} />
-                        <DetailItem label="Amount" field="amount" value={`${selectedInvestment.currency} ${selectedInvestment.amount.toLocaleString()}`} />
-                        <DetailItem label="Duration" field="duration" value={selectedInvestment.duration} />
-                        <DetailItem label="Bank Name" field="bank_name" value={selectedInvestment.bank_name} />
-                        <DetailItem label="Account Number" field="account_number" value={selectedInvestment.account_number} />
-                        <DetailItem label="Account Name" field="account_name" value={selectedInvestment.account_name} />
-                        <DetailItem label="Payment Date" field="payment_date" value={selectedInvestment.payment_date} />
-                        <DetailItem label="Status" field="status" value={selectedInvestment.status.toUpperCase()} />
-                      </div>
-                    </section>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <section>
-                        <h4 className="text-xs font-extrabold text-blue-600 uppercase tracking-widest mb-4 border-b border-blue-50 pb-2">Next of Kin</h4>
-                        <div className="space-y-4">
-                          <DetailItem label="Name" field="nok_name" value={selectedInvestment.nok_name} />
-                          <DetailItem label="Email" field="nok_email" value={selectedInvestment.nok_email} />
-                          <DetailItem label="Phone" field="nok_phone" value={selectedInvestment.nok_phone} />
-                          <DetailItem label="Address" field="nok_address" value={selectedInvestment.nok_address} />
-                        </div>
-                      </section>
-                      <section>
-                        <h4 className="text-xs font-extrabold text-blue-600 uppercase tracking-widest mb-4 border-b border-blue-50 pb-2">Realtor Info</h4>
-                        <div className="space-y-4">
-                          <DetailItem label="Realtor CID" field="realtor_cid" value={selectedInvestment.realtor_cid} />
-                          <DetailItem label="REP Group" field="rep_group" value={selectedInvestment.rep_group} />
-                          <DetailItem label="Group CID" field="rep_group_cid" value={selectedInvestment.rep_group_cid} />
-                          <DetailItem label="REP Name" field="rep_name" value={selectedInvestment.rep_name} />
-                        </div>
-                      </section>
-                    </div>
-                  </div>
-
-                  {/* Right Column: Documents & Actions */}
-                  <div className="space-y-8">
-                    <section>
-                      <h4 className="text-xs font-extrabold text-blue-600 uppercase tracking-widest mb-4 border-b border-blue-50 pb-2">KYC Documents</h4>
-                      <div className="space-y-3">
-                        <DocLink label="Passport Photo" field="passport" url={selectedInvestment.passport_url} />
-                        <DocLink label="Valid ID Card" field="id_card" url={selectedInvestment.id_card_url} />
-                        <DocLink label="Utility Bill" field="utility_bill" url={selectedInvestment.utility_bill_url} />
-                        <DocLink label="Client Signature" field="signature" url={selectedInvestment.signature_url} />
-                        <DocLink label="Payment Proof" field="payment_proof" url={selectedInvestment.payment_proof_url} />
-                      </div>
-                    </section>
-
-                    <section className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
-                      <h4 className="text-sm font-bold text-gray-900 mb-4">Status Actions</h4>
-                      <div className="space-y-3">
-                        {canUpdateStatus && selectedInvestment.status === 'pending' ? (
-                          <>
-                            <button
-                              onClick={() => updateInvestmentStatus(selectedInvestment.id, 'approved')}
-                              className="w-full bg-green-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-all"
-                            >
-                              <CheckCircle size={20} /> Approve Investment
-                            </button>
-                            <button
-                              onClick={() => updateInvestmentStatus(selectedInvestment.id, 'rejected')}
-                              className="w-full bg-red-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-red-700 transition-all"
-                            >
-                              <XCircle size={20} /> Reject Investment
-                            </button>
-                          </>
-                        ) : (
-                          <div className={cn(
-                            "p-4 rounded-xl text-center font-bold uppercase tracking-wider",
-                            selectedInvestment.status === 'approved' ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                          )}>
-                            Status: {selectedInvestment.status}
-                          </div>
-                        )}
-                        {!canUpdateStatus && selectedInvestment.status === 'pending' && (
-                          <div className="p-4 bg-gray-100 text-gray-500 rounded-xl text-center font-bold">
-                            No Permission to Update Status
-                          </div>
-                        )}
-                        <button
-                          onClick={() => setSelectedInvestment(null)}
-                          className="w-full bg-white border border-gray-200 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-50 transition-all"
-                        >
-                          Close View
-                        </button>
-                      </div>
-                    </section>
-                  </div>
-                </div>
+              <h4 className="font-bold text-gray-900 border-b pb-2 mb-4">Investment History</h4>
+              <div className="max-h-60 overflow-y-auto border border-gray-100 rounded-xl">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 text-gray-500 text-[10px] uppercase font-bold">
+                    <tr>
+                      <th className="px-4 py-2">Product</th>
+                      <th className="px-4 py-2">Amount</th>
+                      <th className="px-4 py-2">Status</th>
+                      <th className="px-4 py-2">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {selectedClient.investments.map((inv: any) => (
+                      <tr key={inv.id} className="text-sm">
+                        <td className="px-4 py-2">{inv.product_name}</td>
+                        <td className="px-4 py-2">{inv.currency} {inv.amount.toLocaleString()}</td>
+                        <td className="px-4 py-2 uppercase font-bold text-[10px]">{inv.status}</td>
+                        <td className="px-4 py-2">
+                          <button 
+                            onClick={() => { setSelectedInvestment(inv); setSelectedClient(null); }}
+                            className="text-blue-600 hover:underline font-bold text-xs"
+                          >
+                            VIEW KYC
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </motion.div>
           </div>
+        )}
+
+        {selectedInvestment && (
+          <InvestmentDetailsModal
+            investment={selectedInvestment}
+            onClose={() => setSelectedInvestment(null)}
+            onUpdateStatus={updateInvestmentStatus}
+            onSaveEdit={handleSaveEdit}
+            canEdit={canEditClients}
+            canUpdateStatus={canUpdateStatus}
+            isEditing={isEditing}
+            setIsEditing={setIsEditing}
+            editData={editData}
+            setEditData={setEditData}
+            newFiles={newFiles}
+            setNewFiles={setNewFiles}
+          />
         )}
       </AnimatePresence>
     </div>
