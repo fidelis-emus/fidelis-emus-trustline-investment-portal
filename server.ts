@@ -293,14 +293,51 @@ app.post("/api/investments", authenticate, upload.fields([
         rep_group, rep_group_cid, rep_name, rep_phone, rep_email,
         passport_url, id_card_url, utility_bill_url, signature_url, payment_proof_url, payment_date
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      req.user.id, productId, full_name, email, phone, dob, gender, is_pep, tax_id, marital_status,
-      country, state, nin, bvn, currency, amount, bank_name, account_number, account_name,
-      duration, nok_name, nok_email, nok_address, nok_phone, realtor_cid,
-      rep_group, rep_group_cid, rep_name, rep_phone, rep_email,
-      passport_url, id_card_url, utility_bill_url, signature_url, payment_proof_url, payment_date
-    );
+      VALUES (
+        @user_id, @product_id, @full_name, @email, @phone, @dob, @gender, @is_pep, @tax_id, @marital_status,
+        @country, @state, @nin, @bvn, @currency, @amount, @bank_name, @account_number, @account_name,
+        @duration, @nok_name, @nok_email, @nok_address, @nok_phone, @realtor_cid,
+        @rep_group, @rep_group_cid, @rep_name, @rep_phone, @rep_email,
+        @passport_url, @id_card_url, @utility_bill_url, @signature_url, @payment_proof_url, @payment_date
+      )
+    `).run({
+      user_id: req.user.id,
+      product_id: productId,
+      full_name,
+      email,
+      phone,
+      dob,
+      gender,
+      is_pep,
+      tax_id,
+      marital_status,
+      country,
+      state,
+      nin,
+      bvn,
+      currency,
+      amount,
+      bank_name,
+      account_number,
+      account_name,
+      duration,
+      nok_name,
+      nok_email,
+      nok_address,
+      nok_phone,
+      realtor_cid,
+      rep_group,
+      rep_group_cid,
+      rep_name,
+      rep_phone,
+      rep_email,
+      passport_url,
+      id_card_url,
+      utility_bill_url,
+      signature_url,
+      payment_proof_url,
+      payment_date
+    });
     res.json({ id: result.lastInsertRowid });
   } catch (err: any) {
     res.status(400).json({ error: err.message });

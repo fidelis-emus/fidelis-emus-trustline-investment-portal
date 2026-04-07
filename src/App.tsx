@@ -330,9 +330,10 @@ const ClientDashboard = () => {
 
     const data = new FormData();
     Object.entries(formData).forEach(([key, value]) => {
-      data.append(key, value as string);
+      if (key !== 'confirm_email') {
+        data.append(key, value as string);
+      }
     });
-    data.append('productId', selectedProduct?.id.toString() || '');
     
     Object.entries(files).forEach(([key, file]) => {
       if (file) data.append(key, file as Blob);
