@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext';
-import { Layout, LogIn, PieChart, Users, Briefcase, Settings, LogOut, Menu, X, Plus, CheckCircle, XCircle, Clock, Eye, Trash2, ShieldAlert, Printer } from 'lucide-react';
+import { Layout, LogIn, PieChart, Users, Briefcase, Settings, LogOut, Menu, X, Plus, CheckCircle, XCircle, Clock, Eye, Trash2, ShieldAlert, Printer, LayoutDashboard, FileText, Send, UserCheck, CreditCard, CheckSquare, Receipt, Activity, TrendingUp } from 'lucide-react';
 import { formatCurrency, cn } from './lib/utils';
 import { User, Product, Investment, AdminStats } from './types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -660,6 +660,21 @@ const ClientDashboard = () => {
 
   const totalInvested = investments.reduce((sum, inv) => inv.status === 'approved' ? sum + inv.amount : sum, 0);
 
+  // Calculate performance data for the graph
+  const performanceData = investments
+    .filter(inv => inv.status === 'approved')
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    .reduce((acc: any[], inv) => {
+      const date = new Date(inv.created_at).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      const existing = acc.find(d => d.date === date);
+      if (existing) {
+        existing.amount += inv.amount;
+      } else {
+        acc.push({ date, amount: inv.amount });
+      }
+      return acc;
+    }, []);
+
   const realtorGroups = [
     "ABN REALTORS GROUP", "BRG", "FORMIDABLE REALTOR NETWORK", 
     "PEAK PERFORMAER BUSINESS NETWORK", "PLATINUM CAPE REALTOR GROUP", 
@@ -734,6 +749,27 @@ const ClientDashboard = () => {
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
               <p className="text-sm text-gray-500 mb-1">Pending Requests</p>
               <h3 className="text-2xl font-bold text-gray-900">{investments.filter(i => i.status === 'pending').length}</h3>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm mb-8">
+            <h2 className="text-lg font-bold text-gray-900 mb-6">Investment Performance</h2>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={performanceData.length > 0 ? performanceData : [{ date: 'No Data', amount: 0 }]}>
+                  <defs>
+                    <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#2563eb" stopOpacity={0.1}/>
+                      <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
+                  <Tooltip formatter={(value: any) => formatCurrency(value)} />
+                  <Area type="monotone" dataKey="amount" stroke="#2563eb" fillOpacity={1} fill="url(#colorAmount)" />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
           </div>
 
@@ -1148,7 +1184,7 @@ const ClientDashboard = () => {
 const AdminDashboard = () => {
   const { token, user } = useAuth();
   const [stats, setStats] = useState<AdminStats | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'clients' | 'investments' | 'products' | 'staff'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'clients' | 'investments' | 'products' | 'staff' | 'realtors' | 'kyc' | 'validation' | 'receipt' | 'rejections' | 'tracker'>('overview');
   const [clients, setClients] = useState<User[]>([]);
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -1346,15 +1382,46 @@ const AdminDashboard = () => {
   return (
     <div className="flex min-h-[calc(100vh-64px)] bg-gray-50">
       {/* Sidebar */}
-      <aside className="w-64 bg-gray-900 text-white p-6 hidden lg:block">
-        <div className="space-y-2">
-          <div onClick={() => setActiveTab('overview')}><SidebarItem icon={PieChart} label="Overview" to="#" active={activeTab === 'overview'} /></div>
-          {canViewClients && <div onClick={() => setActiveTab('clients')}><SidebarItem icon={Users} label="Clients" to="#" active={activeTab === 'clients'} /></div>}
-          {canViewInvestments && <div onClick={() => setActiveTab('investments')}><SidebarItem icon={Briefcase} label="Investments" to="#" active={activeTab === 'investments'} /></div>}
-          <div onClick={() => setActiveTab('products')}><SidebarItem icon={Settings} label="Products" to="#" active={activeTab === 'products'} /></div>
-          {user?.role === 'admin' && (
-            <div onClick={() => setActiveTab('staff')}><SidebarItem icon={ShieldAlert} label="Staff" to="#" active={activeTab === 'staff'} /></div>
-          )}
+      <aside className="w-64 bg-[#001540] text-white p-6 hidden lg:block">
+        <div className="mb-10">
+          <h2 className="text-2xl font-bold text-white mb-2">Admin Module</h2>
+        </div>
+        <div className="space-y-1">
+          <div onClick={() => setActiveTab('overview')}><SidebarItem icon={LayoutDashboard} label="Dashboard" to="#" active={activeTab === 'overview'} /></div>
+          <div onClick={() => setActiveTab('products')}><SidebarItem icon={FileText} label="Forms" to="#" active={activeTab === 'products'} /></div>
+          {canViewInvestments && <div onClick={() => setActiveTab('investments')}><SidebarItem icon={Send} label="Submissions" to="#" active={activeTab === 'investments'} /></div>}
+          <div onClick={() => setActiveTab('realtors')}><SidebarItem icon={UserCheck} label="Realtors" to="#" active={activeTab === 'realtors'} /></div>
+          
+          <div className="pt-4 pb-2">
+            <div onClick={() => setActiveTab('kyc')} className="flex items-center justify-between cursor-pointer hover:text-blue-400 transition-colors px-4 py-3">
+              <div className="flex items-center gap-3">
+                <CreditCard size={20} />
+                <span className="font-medium">KYC</span>
+              </div>
+              <span className="text-[10px]">▼</span>
+            </div>
+            <div onClick={() => setActiveTab('validation')} className="flex items-center justify-between cursor-pointer hover:text-blue-400 transition-colors px-4 py-3">
+              <div className="flex items-center gap-3">
+                <CheckSquare size={20} />
+                <span className="font-medium">Validation</span>
+              </div>
+              <span className="text-[10px]">▼</span>
+            </div>
+          </div>
+
+          <div onClick={() => setActiveTab('receipt')}><SidebarItem icon={Receipt} label="Receipt" to="#" active={activeTab === 'receipt'} /></div>
+          <div onClick={() => setActiveTab('rejections')}><SidebarItem icon={XCircle} label="Rejections" to="#" active={activeTab === 'rejections'} /></div>
+          <div onClick={() => setActiveTab('tracker')}><SidebarItem icon={Activity} label="Tracker" to="#" active={activeTab === 'tracker'} /></div>
+
+          <div className="mt-8 pt-8 border-t border-gray-800">
+            {user?.role === 'admin' && (
+              <div onClick={() => setActiveTab('staff')}><SidebarItem icon={ShieldAlert} label="Staff" to="#" active={activeTab === 'staff'} /></div>
+            )}
+            <button onClick={() => window.location.href = '/login'} className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white transition-colors">
+              <LogOut size={20} />
+              <span className="font-medium">Logout</span>
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -1526,6 +1593,30 @@ const AdminDashboard = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'tracker' && (
+          <div className="space-y-6">
+            <h1 className="text-2xl font-bold text-gray-900">Investment Tracker</h1>
+            <div className="bg-white p-8 rounded-2xl border border-gray-100 text-center">
+              <Activity size={48} className="mx-auto text-blue-600 mb-4" />
+              <h3 className="text-lg font-bold text-gray-900">Real-time Tracker</h3>
+              <p className="text-gray-500">Monitoring all active investment flows and maturity dates.</p>
+            </div>
+          </div>
+        )}
+
+        {['realtors', 'kyc', 'validation', 'receipt', 'rejections'].includes(activeTab) && (
+          <div className="space-y-6">
+            <h1 className="text-2xl font-bold text-gray-900 uppercase">{activeTab} Management</h1>
+            <div className="bg-white p-12 rounded-2xl border border-gray-100 text-center">
+              <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Settings className="text-blue-600 animate-spin" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">Module Under Configuration</h3>
+              <p className="text-gray-500">This section is currently being optimized for your workflow.</p>
             </div>
           </div>
         )}
